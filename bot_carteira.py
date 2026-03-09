@@ -2,9 +2,12 @@ import telebot
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 import sqlite3
+import os
+import threading
+from flask import Flask
 from datetime import datetime
 
-TOKEN = "SEU_TOKEN_AQUI"  # ← TROQUE PELO SEU TOKEN
+TOKEN = os.environ.get("TOKEN")  # ← o Render vai pegar automaticamente
 bot = telebot.TeleBot(TOKEN)
 user_id = None
 
@@ -15,11 +18,23 @@ c.execute('''CREATE TABLE IF NOT EXISTS carteira (ticker TEXT PRIMARY KEY, tipo 
 c.execute('''CREATE TABLE IF NOT EXISTS ultimos_div (ticker TEXT PRIMARY KEY, ultima_data TEXT)''')
 conn.commit()
 
+# ======================= FLASK PARA RENDER =======================
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "✅ Bot de carteira está online 24h!"
+
+def run_flask():
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
+
+# ======================= COMANDOS DO BOT =======================
 @bot.message_handler(commands=['start'])
 def start(message):
     global user_id
     user_id = message.chat.id
-    bot.reply_to(message, "✅ Bot atualizado com brapi.dev!\n\nComandos:\n/add TICKER qtd preco_medio preco_alvo\n/carteira\n/alertas")
+    bot.reply_to(message, "✅ Bot online 24h no Render!\nComandos:\n/add TICKER qtd preco_medio preco_alvo\n/carteira\n/alertas")
 
 @bot.message_handler(commands=['add'])
 def add(message):
@@ -64,7 +79,7 @@ def ver_carteira(message):
 
 @bot.message_handler(commands=['alertas'])
 def alertas(message):
-    bot.reply_to(message, "✅ Monitoramento 24h ativado com brapi.dev!")
+    bot.reply_to(message, "✅ Monitoramento 24h ativado no Render!")
 
 def checar_tudo():
     if user_id is None: return
@@ -77,11 +92,9 @@ def checar_tudo():
             data = r.json()['results'][0]
             preco = data.get('regularMarketPrice') or data.get('lastPrice', 0)
 
-            # Alerta de compra
             if preco > 0 and preco <= preco_alvo:
                 bot.send_message(user_id, f"🚨 HORA DE COMPRAR!\n{ticker} está baixo!\nPreço atual: R${preco:.2f} (alvo: R${preco_alvo:.2f})")
 
-            # Alerta de novo relatório (novo dividendo)
             if "11" in ticker and 'dividendsData' in data:
                 divs = data['dividendsData'].get('cashDividends', [])
                 if divs:
@@ -95,9 +108,13 @@ def checar_tudo():
         except:
             pass
 
+# ======================= INICIAR TUDO =======================
 scheduler = BackgroundScheduler()
 scheduler.add_job(checar_tudo, 'interval', hours=1)
 scheduler.start()
 
-print("🤖 Bot com brapi.dev rodando... (pressione Ctrl+C para parar)")
+print("🤖 Bot Render 24h rodando...")
+
+# Roda o Flask em segundo plano + o bot
+threading.Thread(target=run_flask, daemon=True).start()
 bot.infinity_polling()
