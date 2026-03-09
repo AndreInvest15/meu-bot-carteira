@@ -4,7 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import sqlite3
 from datetime import datetime
 
-TOKEN = "8727217106:AAGifTc6TPSaubW68SvesbLugo6W1oQMeKw"  # ← TROQUE PELO SEU TOKEN
+TOKEN = "SEU_TOKEN_AQUI"  # ← TROQUE PELO SEU TOKEN
 bot = telebot.TeleBot(TOKEN)
 user_id = None
 
